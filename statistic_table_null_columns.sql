@@ -5,7 +5,7 @@ BEGIN
 	DECLARE i INT;
 	DECLARE temp_str VARCHAR(50) DEFAULT '';
 	DECLARE random_str VARCHAR(40) DEFAULT 'abcdefghijklmnopqrstuvwxyz1234567890';
-    -- 创建临时表存储统计结果
+    	-- create temporary table to save statistic data 创建临时表存储统计结果
 	SET i = 1;
 	WHILE i < 5 DO
 		SET temp_str = CONCAT(temp_str, SUBSTRING(random_str, FLOOR(1 + RAND() * 36), 1));
@@ -16,22 +16,24 @@ BEGIN
 	PREPARE stmt FROM @temp_table_creator;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	-- 查询表列数量
+	-- count columns num for target table 查询表列数量
 	SET @col_num_querier = CONCAT(
 		'SELECT COUNT(`column_name`) INTO @col_num FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=\'', dbname,
 		'\' AND TABLE_NAME=\'', tablename, '\'');
 	PREPARE stmt FROM @col_num_querier;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	-- 统计
+	-- statistic 统计
 	SET i = 0;
 	WHILE i < @col_num DO
+	        -- get column name for dynamic sql 获取列名
 		SET @col_querier = CONCAT(
 			'SELECT `column_name` INTO @col_name FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=\'', dbname,
 			'\' AND TABLE_NAME=\'', tablename, '\' LIMIT 1 OFFSET ', i);
 		PREPARE stmt FROM @col_querier;
 		EXECUTE stmt;
 		DEALLOCATE PREPARE stmt;
+		-- count null column num, and insert into temporary table 统计NULL值列并保存至临时表
 		SET @statistc_sql = CONCAT(
 			'INSERT INTO `', @temp_table_name, 
 			'` SELECT \'', @col_name, '\' AS `col_name`, COUNT(1) AS `null_count` FROM `', tablename,
@@ -41,14 +43,14 @@ BEGIN
 		DEALLOCATE PREPARE stmt;
 		SET i = i + 1;
 	END WHILE;
-    -- 输出
-    SET @output_sql = CONCAT('SELECT * FROM ', @temp_table_name);
-    PREPARE stmt FROM @output_sql;
+	-- output 输出
+	SET @output_sql = CONCAT('SELECT * FROM ', @temp_table_name);
+	PREPARE stmt FROM @output_sql;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	-- 清理
+	-- clear 清理
 	SET @clear_sql = CONCAT('DROP TABLE ', @temp_table_name);
-    PREPARE stmt FROM @clear_sql;
+	PREPARE stmt FROM @clear_sql;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
 END $$
